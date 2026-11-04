@@ -226,9 +226,9 @@ function getDepth(c, r, h = 0) {
   const cosA = Math.cos(currentCameraAngle);
   const sinA = Math.sin(currentCameraAngle);
 
-  // 越靠近观察者，yProj 越大（深度越深，后绘制）
+  // 越靠近观察者，yProj 越大（深度越深，后绘制）；高度 h 越大离摄像机越近
   const yProj = X0 * sinA + Z0 * cosA;
-  return yProj - (h / TILE_SIZE) * 0.05;
+  return yProj + (h / TILE_SIZE) * 0.5;
 }
 
 // --- 关卡重置与初始化 ---
@@ -494,45 +494,21 @@ function drawTile(c, r, type) {
   ctx.stroke();
 }
 
-function drawBlockMesh(projVerts) {
-  // 方块 6 个面定义
-  const faces = [
-    { indices: [0, 1, 2, 3], normal: 'BOTTOM', color: '#92400e' },
-    { indices: [4, 5, 6, 7], normal: 'TOP', color: '#f59e0b' },
-    { indices: [0, 1, 5, 4], normal: 'BACK_ROW', color: '#b45309' },
-    { indices: [3, 2, 6, 7], normal: 'FRONT_ROW', color: '#d97706' },
-    { indices: [0, 3, 7, 4], normal: 'LEFT_COL', color: '#b45309' },
-    { indices: [1, 2, 6, 5], normal: 'RIGHT_COL', color: '#d97706' }
-  ];
+function drawBlockFace(face, verts) {
+  const pts = face.indices.map(idx => project(verts[idx].c, verts[idx].r, verts[idx].h));
 
-  // 计算每个面的平均摄像机深度进行画家算法排序
-  const faceList = faces.map(f => {
-    let avgDepth = 0;
-    for (let idx of f.indices) {
-      avgDepth += getDepth(projVerts[idx].c, projVerts[idx].r, projVerts[idx].h);
-    }
-    return { ...f, depth: avgDepth / 4 };
-  });
-
-  // 从远到近绘制
-  faceList.sort((a, b) => a.depth - b.depth);
-
-  for (let face of faceList) {
-    const pts = face.indices.map(idx => project(projVerts[idx].c, projVerts[idx].r, projVerts[idx].h));
-    
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) {
-      ctx.lineTo(pts[i].x, pts[i].y);
-    }
-    ctx.closePath();
-
-    ctx.fillStyle = face.color;
-    ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = '#78350f';
-    ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i].x, pts[i].y);
   }
+  ctx.closePath();
+
+  ctx.fillStyle = face.color;
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#78350f';
+  ctx.stroke();
 }
 
 // --- 动画主循环 ---
@@ -547,29 +523,7 @@ function render(timestamp) {
     currentCameraAngle = targetCameraAngle;
   }
 
-  // 1. 收集并按当前摄像机深度绘制所有地块
-  const grid = LEVELS[currentLevelIdx].grid;
-  const tilesToDraw = [];
-  for (let r = 0; r < grid.length; r++) {
-    for (let c = 0; c < grid[r].length; c++) {
-      if (grid[r][c] > 0) {
-        tilesToDraw.push({
-          r,
-          c,
-          type: grid[r][c],
-          depth: getDepth(c + 0.5, r + 0.5, 0)
-        });
-      }
-    }
-  }
-
-  // 画家算法：从远到近绘制地块
-  tilesToDraw.sort((a, b) => a.depth - b.depth);
-  for (let tile of tilesToDraw) {
-    drawTile(tile.c, tile.r, tile.type);
-  }
-
-  // 2. 状态机更新与方块顶点解析
+  // 1. 状态机更新与方块当前 3D 顶点解算
   let finalVerts = null;
 
   if (fallAnim) {
@@ -630,9 +584,61 @@ function render(timestamp) {
     finalVerts = baseV.map(v => ({ c: v.x, r: v.z, h: v.y }));
   }
 
-  // 3. 绘制方块
+  // 2. 收集地块与方块各面，统一纳入统一深度列表进行精准 3D 遮挡排序
+  const renderList = [];
+  const grid = LEVELS[currentLevelIdx].grid;
+
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[r].length; c++) {
+      if (grid[r][c] > 0) {
+        const d = grid[r][c] === 3
+          ? getDepth(c + 0.5, r + 0.5, -400)
+          : getDepth(c + 0.5, r + 0.5, 0);
+        renderList.push({
+          type: 'TILE',
+          c,
+          r,
+          tileType: grid[r][c],
+          depth: d
+        });
+      }
+    }
+  }
+
   if (finalVerts) {
-    drawBlockMesh(finalVerts);
+    const faces = [
+      { indices: [0, 1, 2, 3], normal: 'BOTTOM', color: '#92400e' },
+      { indices: [4, 5, 6, 7], normal: 'TOP', color: '#f59e0b' },
+      { indices: [0, 1, 5, 4], normal: 'BACK_ROW', color: '#b45309' },
+      { indices: [3, 2, 6, 7], normal: 'FRONT_ROW', color: '#d97706' },
+      { indices: [0, 3, 7, 4], normal: 'LEFT_COL', color: '#b45309' },
+      { indices: [1, 2, 6, 5], normal: 'RIGHT_COL', color: '#d97706' }
+    ];
+
+    for (let face of faces) {
+      let avgDepth = 0;
+      for (let idx of face.indices) {
+        avgDepth += getDepth(finalVerts[idx].c, finalVerts[idx].r, finalVerts[idx].h);
+      }
+      renderList.push({
+        type: 'BLOCK_FACE',
+        face,
+        finalVerts,
+        depth: (avgDepth / 4) + 0.002
+      });
+    }
+  }
+
+  // 3. 画家算法统一深度排序（从远到近绘制，掉入后方的方块会被前方底板自然遮挡）
+  renderList.sort((a, b) => a.depth - b.depth);
+
+  // 4. 按正确深度顺序绘制
+  for (let item of renderList) {
+    if (item.type === 'TILE') {
+      drawTile(item.c, item.r, item.tileType);
+    } else if (item.type === 'BLOCK_FACE') {
+      drawBlockFace(item.face, item.finalVerts);
+    }
   }
 
   requestAnimationFrame(render);

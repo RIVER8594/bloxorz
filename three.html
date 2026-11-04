@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Bloxorz 3D - Three.js 立体翻滚方块</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      background: radial-gradient(circle at center, #131b26 0%, #070a0f 100%);
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #ui-bar {
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      z-index: 10;
+    }
+    .hud-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(8px);
+      padding: 5px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .hud-val {
+      color: #38bdf8;
+      font-weight: 700;
+    }
+    .btn {
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 5px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn:hover, .btn:active {
+      background: #334155;
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.4);
+      transform: translateY(-1px);
+    }
+    #game-container {
+      position: relative;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      background: #090d14;
+      overflow: hidden;
+      width: 800px;
+      height: 600px;
+      max-width: 95vw;
+      max-height: 75vh;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      touch-action: none;
+    }
+    #instruction {
+      margin-top: 14px;
+      color: #94a3b8;
+      font-size: 13px;
+      text-align: center;
+      padding: 0 10px;
+      z-index: 10;
+    }
+    kbd {
+      background: #334155;
+      color: #f8fafc;
+      padding: 3px 7px;
+      border-radius: 4px;
+      font-size: 12px;
+      box-shadow: 0 2px 0 #1e293b;
+      margin: 0 2px;
+    }
+    .engine-tag {
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    #overlay-banner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(12px);
+      padding: 24px 36px;
+      border-radius: 16px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 30px rgba(56,189,248,0.2);
+      text-align: center;
+      display: none;
+      z-index: 50;
+      animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes popIn {
+      to { transform: translate(-50%, -50%) scale(1); }
+    }
+    #overlay-banner h2 {
+      font-size: 24px;
+      color: #f8fafc;
+      margin-bottom: 8px;
+    }
+    #overlay-banner p {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 18px;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="ui-bar">
+    <div class="hud-badge">
+      <span class="engine-tag">Three.js</span>
+      <span>关卡: <span id="level-display" class="hud-val">1 / 3</span></span>
+    </div>
+    <div class="hud-badge">
+      <span>步数: <span id="moves-display" class="hud-val">0</span></span>
+    </div>
+    <button id="btn-restart" class="btn" title="重新开始当前关 (R)">↺ 重置</button>
+    <a href="index.html" class="btn" title="切换至 Canvas 2D 原生轻量版">⇄ Canvas版</a>
+  </div>
+
+  <div id="game-container">
+    <div id="overlay-banner">
+      <h2 id="banner-title">通关！</h2>
+      <p id="banner-msg">恭喜进入下一关</p>
+      <button id="btn-next" class="btn" style="background:#0284c7; color:#fff; font-size:14px; padding:8px 20px;">继续</button>
+    </div>
+  </div>
+
+  <div id="instruction">
+    操作方式: 滑动手势 或 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> 翻滚方块 | 点击“重置”或按 <kbd>R</kbd> 重置当前关
+  </div>
+
+<script>
+// ==========================================
+// Bloxorz 3D - Three.js WebGL 实现
+// ==========================================
+
+const container = document.getElementById('game-container');
+const levelDisplay = document.getElementById('level-display');
+const movesDisplay = document.getElementById('moves-display');
+const btnRestart = document.getElementById('btn-restart');
+const overlayBanner = document.getElementById('overlay-banner');
+const bannerTitle = document.getElementById('banner-title');
+const bannerMsg = document.getElementById('banner-msg');
+const btnNext = document.getElementById('btn-next');
+
+// 关卡数据 (与原版完全一致)
+const LEVELS = [
+  // Level 1: 基础教学
+  {
+    start: { r: 1, c: 1 },
+    grid: [
+      [1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+      [1, 2, 1, 1, 1, 1, 0, 0, 0, 0],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+      [0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [0, 0, 0, 0, 0, 1, 1, 3, 1, 1],
+      [0, 0, 0, 0, 0, 0, 1, 1, 1, 0]
+    ]
+  },
+  // Level 2: 拐弯与窄路
+  {
+    start: { r: 1, c: 1 },
+    grid: [
+      [1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+      [1, 2, 1, 0, 0, 1, 1, 1, 1, 0],
+      [1, 1, 1, 0, 0, 0, 0, 1, 1, 0],
+      [0, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+      [0, 0, 0, 1, 1, 1, 1, 1, 3, 1],
+      [0, 0, 0, 0, 0, 0, 0, 1, 1, 1]
+    ]
+  },
+  // Level 3: 空间姿态微调
+  {
+    start: { r: 1, c: 0 },
+    grid: [
+      [1, 1, 1, 1, 0, 0, 1, 1, 1, 1],
+      [2, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 0, 0, 1, 1, 3, 1],
+      [0, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+      [0, 1, 1, 1, 1, 1, 1, 1, 1, 0]
+    ]
+  }
+];
+
+const TILE_UNIT = 2.0;       // 地块网格大小
+const TILE_HEIGHT = 0.35;    // 地块厚度
+const BLOCK_UNIT = 2.0;      // 方块单格尺寸 (立起为 2 x 4 x 2)
+
+let currentLevelIdx = 0;
+let moves = 0;
+let blockState = null;
+let isAnimating = false;
+let fallAnim = null;
+let winAnim = null;
+
+// Three.js 核心对象
+let scene, camera, renderer;
+let boardGroup = new THREE.Group();
+let blockMesh = null;
+let pivotGroup = new THREE.Group();
+let particlesGroup = new THREE.Group();
+let holeLight = null;
+
+// 视角控制：匹配 160° 等轴测视角
+const CAMERA_DIST = 45;
+const CAMERA_AZIMUTH = 160 * (Math.PI / 180); // 水平航向角 160°
+const CAMERA_ELEVATION = 35.264 * (Math.PI / 180); // 等轴测仰角 ~35.264°
+
+function initThree() {
+  // 1. 场景
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0f18);
+  scene.fog = new THREE.FogExp2(0x0a0f18, 0.012);
+
+  // 2. 摄像机 (正交等轴测摄像机)
+  const aspect = container.clientWidth / container.clientHeight;
+  const frustumSize = 28;
+  camera = new THREE.OrthographicCamera(
+    (frustumSize * aspect) / -2,
+    (frustumSize * aspect) / 2,
+    frustumSize / 2,
+    frustumSize / -2,
+    0.1,
+    200
+  );
+
+  updateCameraPosition();
+  scene.add(camera);
+
+  // 3. 渲染器
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  container.appendChild(renderer.domElement);
+
+  // 4. 灯光系统
+  const ambientLight = new THREE.AmbientLight(0xcfd8dc, 0.65);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xfffbeb, 1.25);
+  dirLight.position.set(20, 40, -15);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 2048;
+  dirLight.shadow.mapSize.height = 2048;
+  dirLight.shadow.camera.near = 0.5;
+  dirLight.shadow.camera.far = 100;
+  const d = 25;
+  dirLight.shadow.camera.left = -d;
+  dirLight.shadow.camera.right = d;
+  dirLight.shadow.camera.top = d;
+  dirLight.shadow.camera.bottom = -d;
+  dirLight.shadow.bias = -0.0005;
+  scene.add(dirLight);
+
+  // 柔和边缘补光
+  const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.45);
+  rimLight.position.set(-25, 20, 25);
+  scene.add(rimLight);
+
+  // 底层节点组织
+  scene.add(boardGroup);
+  scene.add(pivotGroup);
+  scene.add(particlesGroup);
+
+  // 5. 初始化材质库
+  initMaterials();
+
+  // 6. 载入关卡
+  loadLevel(currentLevelIdx);
+
+  // 7. 响应尺寸变化
+  window.addEventListener('resize', onWindowResize);
+}
+
+function updateCameraPosition() {
+  const cosE = Math.cos(CAMERA_ELEVATION);
+  const sinE = Math.sin(CAMERA_ELEVATION);
+  const sinA = Math.sin(CAMERA_AZIMUTH);
+  const cosA = Math.cos(CAMERA_AZIMUTH);
+
+  camera.position.set(
+    CAMERA_DIST * cosE * sinA,
+    CAMERA_DIST * sinE,
+    CAMERA_DIST * cosE * cosA
+  );
+  camera.lookAt(0, 0, 0);
+}
+
+function onWindowResize() {
+  if (!container || !renderer || !camera) return;
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  const aspect = w / h;
+  const frustumSize = 28;
+
+  camera.left = (-frustumSize * aspect) / 2;
+  camera.right = (frustumSize * aspect) / 2;
+  camera.top = frustumSize / 2;
+  camera.bottom = -frustumSize / 2;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(w, h);
+}
+
+// --- 材质库 ---
+let tileMaterial, tileSideMaterial, startTileMaterial, holeMaterial, blockMaterial, blockEdgeMaterial;
+
+function initMaterials() {
+  // 普通地块顶面材质
+  tileMaterial = new THREE.MeshStandardMaterial({
+    color: 0xdbe4ee,
+    roughness: 0.3,
+    metalness: 0.05
+  });
+
+  // 普通地块侧边材质
+  tileSideMaterial = new THREE.MeshStandardMaterial({
+    color: 0x475569,
+    roughness: 0.55,
+    metalness: 0.1
+  });
+
+  // 起点地块材质
+  startTileMaterial = new THREE.MeshStandardMaterial({
+    color: 0x94a3b8,
+    roughness: 0.35,
+    metalness: 0.12
+  });
+
+  // 终点方洞内衬材质 (吸收光线的深渊黑)
+  holeMaterial = new THREE.MeshBasicMaterial({
+    color: 0x020408,
+    side: THREE.DoubleSide
+  });
+
+  // 主角色方块材质 (高质感鲜明立体暖橙)
+  blockMaterial = new THREE.MeshStandardMaterial({
+    color: 0xf97316,
+    roughness: 0.22,
+    metalness: 0.12,
+    emissive: 0xc2410c,
+    emissiveIntensity: 0.06
+  });
+
+  // 方块边缘勾勒材质
+  blockEdgeMaterial = new THREE.LineBasicMaterial({
+    color: 0x9a3412,
+    linewidth: 1.5
+  });
+}
+
+// 计算地图中心点，确保居中投影
+function getLevelCenter(lvlIdx) {
+  const grid = LEVELS[lvlIdx].grid;
+  let minR = 999, maxR = -999, minC = 999, maxC = -999;
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[r].length; c++) {
+      if (grid[r][c] > 0) {
+        if (r < minR) minR = r;
+        if (r > maxR) maxR = r;
+        if (c < minC) minC = c;
+        if (c > maxC) maxC = c;
+      }
+    }
+  }
+  return {
+    c0: (minC + maxC + 1) / 2,
+    r0: (minR + maxR + 1) / 2
+  };
+}
+
+// 网格 (c, r) 转为 Three.js 世界坐标 (X, Z)
+function gridToWorld(c, r, center) {
+  return {
+    x: (c - center.c0 + 0.5) * TILE_UNIT,
+    z: (r - center.r0 + 0.5) * TILE_UNIT
+  };
+}
+
+// --- 地图生成 ---
+function loadLevel(lvlIdx) {
+  currentLevelIdx = lvlIdx;
+  moves = 0;
+  isAnimating = false;
+  fallAnim = null;
+  winAnim = null;
+  levelDisplay.innerText = `${currentLevelIdx + 1} / ${LEVELS.length}`;
+  movesDisplay.innerText = moves;
+  overlayBanner.style.display = 'none';
+
+  // 清空棋盘
+  while (boardGroup.children.length > 0) {
+    const obj = boardGroup.children[0];
+    boardGroup.remove(obj);
+    if (obj.geometry) obj.geometry.dispose();
+  }
+  while (particlesGroup.children.length > 0) {
+    const obj = particlesGroup.children[0];
+    particlesGroup.remove(obj);
+    if (obj.geometry) obj.geometry.dispose();
+  }
+
+  const lvl = LEVELS[currentLevelIdx];
+  const grid = lvl.grid;
+  const center = getLevelCenter(currentLevelIdx);
+
+  // 单独地块几何体
+  const tileGeo = new THREE.BoxGeometry(TILE_UNIT * 0.96, TILE_HEIGHT, TILE_UNIT * 0.96);
+
+  // 终点洞发光体
+  if (holeLight) {
+    scene.remove(holeLight);
+    holeLight = null;
+  }
+
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[r].length; c++) {
+      const type = grid[r][c];
+      if (type === 0) continue;
+
+      const pos = gridToWorld(c, r, center);
+
+      if (type === 3) {
+        // 终点方洞 (空心开口，无穿底突兀黑柱)
+        const holeFloorGeo = new THREE.PlaneGeometry(TILE_UNIT * 0.96, TILE_UNIT * 0.96);
+        const holeFloorMesh = new THREE.Mesh(holeFloorGeo, holeMaterial);
+        holeFloorMesh.rotation.x = -Math.PI / 2;
+        holeFloorMesh.position.set(pos.x, -TILE_HEIGHT, pos.z);
+        boardGroup.add(holeFloorMesh);
+
+        // 方洞 4 个内壁
+        const hw = TILE_UNIT * 0.96;
+        const hh = TILE_HEIGHT;
+        const wallGeo = new THREE.PlaneGeometry(hw, hh);
+        
+        // North wall
+        const nw = new THREE.Mesh(wallGeo, holeMaterial);
+        nw.position.set(pos.x, -hh / 2, pos.z - hw / 2);
+        boardGroup.add(nw);
+        // South wall
+        const sw = new THREE.Mesh(wallGeo, holeMaterial);
+        sw.rotation.y = Math.PI;
+        sw.position.set(pos.x, -hh / 2, pos.z + hw / 2);
+        boardGroup.add(sw);
+        // East wall
+        const ew = new THREE.Mesh(wallGeo, holeMaterial);
+        ew.rotation.y = -Math.PI / 2;
+        ew.position.set(pos.x + hw / 2, -hh / 2, pos.z);
+        boardGroup.add(ew);
+        // West wall
+        const ww = new THREE.Mesh(wallGeo, holeMaterial);
+        ww.rotation.y = Math.PI / 2;
+        ww.position.set(pos.x - hw / 2, -hh / 2, pos.z);
+        boardGroup.add(ww);
+
+        // 方洞边框发光线
+        const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(TILE_UNIT * 0.96, 0.02, TILE_UNIT * 0.96));
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2.5 }));
+        line.position.set(pos.x, 0.01, pos.z);
+        boardGroup.add(line);
+
+        // 终点青色微光
+        holeLight = new THREE.PointLight(0x38bdf8, 1.5, 6);
+        holeLight.position.set(pos.x, 0.6, pos.z);
+        boardGroup.add(holeLight);
+        continue;
+      }
+
+      // 普通地块与起点地块
+      const mat = (type === 2) ? startTileMaterial : tileMaterial;
+      const tileMesh = new THREE.Mesh(tileGeo, [
+        tileSideMaterial, // right
+        tileSideMaterial, // left
+        mat,              // top
+        tileSideMaterial, // bottom
+        tileSideMaterial, // front
+        tileSideMaterial  // back
+      ]);
+
+      tileMesh.position.set(pos.x, -TILE_HEIGHT / 2, pos.z);
+      tileMesh.receiveShadow = true;
+      boardGroup.add(tileMesh);
+    }
+  }
+
+  // 创建方块主角
+  createBlock(lvl.start.r, lvl.start.c, 'V');
+}
+
+// --- 方块主角创建与状态管理 ---
+function createBlock(r, c, orientation) {
+  if (blockMesh) {
+    if (blockMesh.parent) blockMesh.parent.remove(blockMesh);
+    if (blockMesh.geometry) blockMesh.geometry.dispose();
+    blockMesh = null;
+  }
+
+  blockState = { r, c, orientation };
+
+  // 方块网格尺寸定义
+  let sx = 1, sy = 2, sz = 1;
+  if (orientation === 'H_ROW') { sx = 1; sy = 1; sz = 2; }
+  if (orientation === 'H_COL') { sx = 2; sy = 1; sz = 1; }
+
+  const geo = new THREE.BoxGeometry(
+    sx * BLOCK_UNIT * 0.95,
+    sy * BLOCK_UNIT * 0.95,
+    sz * BLOCK_UNIT * 0.95
+  );
+
+  blockMesh = new THREE.Mesh(geo, blockMaterial);
+  blockMesh.castShadow = true;
+  blockMesh.receiveShadow = true;
+
+  // 轮廓描边
+  const edges = new THREE.EdgesGeometry(geo);
+  const line = new THREE.LineSegments(edges, blockEdgeMaterial);
+  blockMesh.add(line);
+
+  updateBlockMeshTransform();
+  scene.add(blockMesh);
+}
+
+function updateBlockMeshTransform() {
+  if (!blockMesh || !blockState) return;
+  const center = getLevelCenter(currentLevelIdx);
+  const { r, c, orientation } = blockState;
+
+  let sx = 1, sy = 2, sz = 1;
+  let cx = c, cz = r;
+
+  if (orientation === 'V') {
+    sx = 1; sy = 2; sz = 1;
+    cx = c; cz = r;
+  } else if (orientation === 'H_ROW') {
+    sx = 1; sy = 1; sz = 2;
+    cx = c; cz = r + 0.5;
+  } else if (orientation === 'H_COL') {
+    sx = 2; sy = 1; sz = 1;
+    cx = c + 0.5; cz = r;
+  }
+
+  const wPos = gridToWorld(cx, cz, center);
+  blockMesh.position.set(wPos.x, (sy * BLOCK_UNIT * 0.95) / 2, wPos.z);
+  blockMesh.rotation.set(0, 0, 0);
+  blockMesh.scale.set(1, 1, 1);
+}
+
+// 获取方块底面当前覆盖的所有网格单元
+function getOccupiedCells(r, c, orientation) {
+  if (orientation === 'V') return [{ r, c }];
+  if (orientation === 'H_ROW') return [{ r, c }, { r: r + 1, c }];
+  if (orientation === 'H_COL') return [{ r, c }, { r, c: c + 1 }];
+  return [];
+}
+
+// 检查是否全部有效接触地块
+function checkSurfaceStatus(r, c, orientation) {
+  const cells = getOccupiedCells(r, c, orientation);
+  const grid = LEVELS[currentLevelIdx].grid;
+
+  let standingHole = false;
+  if (orientation === 'V' && grid[r]?.[c] === 3) {
+    standingHole = true;
+  }
+
+  for (let cell of cells) {
+    const tile = grid[cell.r]?.[cell.c];
+    if (!tile || tile === 0) {
+      return { status: 'FALL' }; // 悬空摔落
+    }
+  }
+
+  if (standingHole) {
+    return { status: 'WIN' };
+  }
+  return { status: 'OK' };
+}
+
+// --- 3D 动力学翻滚与枢轴计算 ---
+function makeMove(dir) {
+  if (isAnimating || fallAnim || winAnim || !blockState) return;
+
+  const { r, c, orientation } = blockState;
+  let nextR = r, nextC = c, nextOri = orientation;
+
+  // 翻滚物理枢轴世界坐标与旋转轴定义
+  // dir 属于逻辑网格方向: 'UP'(r-), 'DOWN'(r+), 'LEFT'(c-), 'RIGHT'(c+)
+  let pivotGrid = { c: 0, r: 0 };
+  let rotAxis = new THREE.Vector3(); // X 轴或 Z 轴
+  let rotAngle = 0;
+
+  if (orientation === 'V') {
+    if (dir === 'UP') {
+      nextR = r - 2; nextOri = 'H_ROW';
+      pivotGrid = { c: c + 0.5, r: r };
+      rotAxis.set(-1, 0, 0);
+      rotAngle = Math.PI / 2;
+    } else if (dir === 'DOWN') {
+      nextR = r + 1; nextOri = 'H_ROW';
+      pivotGrid = { c: c + 0.5, r: r + 1 };
+      rotAxis.set(1, 0, 0);
+      rotAngle = Math.PI / 2;
+    } else if (dir === 'LEFT') {
+      nextC = c - 2; nextOri = 'H_COL';
+      pivotGrid = { c: c, r: r + 0.5 };
+      rotAxis.set(0, 0, 1);
+      rotAngle = Math.PI / 2;
+    } else if (dir === 'RIGHT') {
+      nextC = c + 1; nextOri = 'H_COL';
+      pivotGrid = { c: c + 1, r: r + 0.5 };
+      rotAxis.set(0, 0, -1);
+      rotAngle = Math.PI / 2;
+    }
+  } else if (orientation === 'H_ROW') {
+    if (dir === 'UP') {
+      nextR = r - 1; nextOri = 'V';
+      pivotGrid = { c: c + 0.5, r: r };
+      rotAxis.set(-1, 0, 0);
+      rotAngle = Math.PI / 2;
+    } else if (dir === 'DOWN') {
+      nextR = r + 2; nextOri = 'V';
+      pivotGrid = { c: c + 0.5, r: r + 2 };
+      rotAxis.set(1, 0, 0);
+      rotAngle = Math.PI / 2;
+    } else if (dir === 'LEFT') {
+      nextC = c - 1; nextOri = 'H_ROW';
+      pivotGrid = { c: c, r: r + 1 };
+      rotAxis.set(0, 0, 1);
+      rotAngle = Math.PI / 2;
+    } else if (dir === 'RIGHT') {
+      nextC = c + 1; nextOri = 'H_ROW';
+      pivotGrid = { c: c + 1, r: r + 1 };
+      rotAxis.set(0, 0, -1);
+      rotAngle = Math.PI / 2;
+    }
+  } else if (orientation === 'H_COL') {
+    if (dir === 'UP') {
+      nextR = r - 1; nextOri = 'H_COL';
+      pivotGrid = { c: c + 1, r: r };
+      rotAxis.set(-1, 0, 0);
+      rotAngle = Math.PI / 2;
+    } else if (dir === 'DOWN') {
+      nextR = r + 1; nextOri = 'H_COL';
+      pivotGrid = { c: c + 1, r: r + 1 };
+      rotAxis.set(1, 0, 0);
+      rotAngle = Math.PI / 2;
+    } else if (dir === 'LEFT') {
+      nextC = c - 1; nextOri = 'V';
+      pivotGrid = { c: c, r: r + 0.5 };
+      rotAxis.set(0, 0, 1);
+      rotAngle = Math.PI / 2;
+    } else if (dir === 'RIGHT') {
+      nextC = c + 2; nextOri = 'V';
+      pivotGrid = { c: c + 2, r: r + 0.5 };
+      rotAxis.set(0, 0, -1);
+      rotAngle = Math.PI / 2;
+    }
+  }
+
+  isAnimating = true;
+  moves++;
+  movesDisplay.innerText = moves;
+
+  const center = getLevelCenter(currentLevelIdx);
+  const pWorld = {
+    x: (pivotGrid.c - center.c0) * TILE_UNIT,
+    z: (pivotGrid.r - center.r0) * TILE_UNIT
+  };
+
+  // 挂载到枢轴父节点进行物理旋转
+  pivotGroup.position.set(pWorld.x, 0, pWorld.z);
+  pivotGroup.rotation.set(0, 0, 0);
+  pivotGroup.attach(blockMesh);
+
+  const startTime = performance.now();
+  const duration = 160;
+
+  function animStep(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // 平滑缓动 (Quadratic Out)
+    const ease = 1 - (1 - progress) * (1 - progress);
+
+    pivotGroup.setRotationFromAxisAngle(rotAxis, rotAngle * ease);
+
+    if (progress < 1) {
+      requestAnimationFrame(animStep);
+    } else {
+      // 动画完成，卸载回全局场景并重置为最终姿态
+      scene.attach(blockMesh);
+      pivotGroup.rotation.set(0, 0, 0);
+
+      blockState.r = nextR;
+      blockState.c = nextC;
+      blockState.orientation = nextOri;
+
+      // 重构几何体适应新姿态尺寸
+      createBlock(nextR, nextC, nextOri);
+      isAnimating = false;
+
+      // 表面判定
+      const res = checkSurfaceStatus(nextR, nextC, nextOri);
+      if (res.status === 'FALL') {
+        startFallAnimation(dir);
+      } else if (res.status === 'WIN') {
+        startWinAnimation();
+      }
+    }
+  }
+
+  requestAnimationFrame(animStep);
+}
+
+// --- 跌落深渊动画 (支持真实 WebGL 硬件深度遮挡) ---
+function startFallAnimation(fallDir) {
+  fallAnim = {
+    startTime: performance.now(),
+    duration: 750,
+    startPos: blockMesh.position.clone(),
+    rotSpeedX: (fallDir === 'UP' ? -4 : fallDir === 'DOWN' ? 4 : (Math.random() - 0.5) * 2),
+    rotSpeedZ: (fallDir === 'LEFT' ? 4 : fallDir === 'RIGHT' ? -4 : (Math.random() - 0.5) * 2)
+  };
+}
+
+// --- 通关坠入方洞并爆发展示粒子动画 ---
+function startWinAnimation() {
+  winAnim = {
+    startTime: performance.now(),
+    duration: 650,
+    startPos: blockMesh.position.clone()
+  };
+  createWinParticles(blockMesh.position.x, blockMesh.position.z);
+}
+
+function createWinParticles(x, z) {
+  const count = 35;
+  const pGeo = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const velocities = [];
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = x;
+    positions[i * 3 + 1] = 0.5;
+    positions[i * 3 + 2] = z;
+
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2 + Math.random() * 5;
+    velocities.push({
+      vx: Math.cos(angle) * speed,
+      vy: 4 + Math.random() * 6,
+      vz: Math.sin(angle) * speed
+    });
+  }
+
+  pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const pMat = new THREE.PointsMaterial({
+    color: 0x38bdf8,
+    size: 0.35,
+    transparent: true,
+    opacity: 1.0,
+    blending: THREE.AdditiveBlending
+  });
+
+  const pSystem = new THREE.Points(pGeo, pMat);
+  pSystem.userData = { velocities, startTime: performance.now() };
+  particlesGroup.add(pSystem);
+}
+
+// --- 渲染循环 ---
+function animate(timestamp) {
+  requestAnimationFrame(animate);
+
+  // 1. 摔落深渊逻辑
+  if (fallAnim) {
+    const elapsed = timestamp - fallAnim.startTime;
+    const t = Math.min(elapsed / fallAnim.duration, 1);
+
+    // 重力自由落体 (t^2)
+    const dropY = t * t * 30;
+    blockMesh.position.y = fallAnim.startPos.y - dropY;
+    blockMesh.rotation.x += fallAnim.rotSpeedX * 0.03;
+    blockMesh.rotation.z += fallAnim.rotSpeedZ * 0.03;
+
+    if (t >= 1) {
+      fallAnim = null;
+      loadLevel(currentLevelIdx);
+    }
+  }
+
+  // 2. 通关下沉逻辑
+  if (winAnim) {
+    const elapsed = timestamp - winAnim.startTime;
+    const t = Math.min(elapsed / winAnim.duration, 1);
+
+    blockMesh.position.y = winAnim.startPos.y - t * 4.5;
+    blockMesh.scale.set(1 - t * 0.4, 1 - t * 0.4, 1 - t * 0.4);
+
+    if (t >= 1) {
+      winAnim = null;
+      if (currentLevelIdx + 1 < LEVELS.length) {
+        bannerTitle.innerText = '恭喜通关！';
+        bannerMsg.innerText = `完成第 ${currentLevelIdx + 1} 关，总耗步数: ${moves}`;
+        overlayBanner.style.display = 'block';
+      } else {
+        bannerTitle.innerText = '🎉 完美通关！';
+        bannerMsg.innerText = `恭喜您成功解开全部 3 关！总步数: ${moves}`;
+        btnNext.innerText = '从头再来';
+        overlayBanner.style.display = 'block';
+      }
+    }
+  }
+
+  // 3. 粒子系统更新
+  for (let i = particlesGroup.children.length - 1; i >= 0; i--) {
+    const pSystem = particlesGroup.children[i];
+    const { velocities, startTime } = pSystem.userData;
+    const elapsed = (timestamp - startTime) / 1000;
+    const pos = pSystem.geometry.attributes.position.array;
+
+    for (let j = 0; j < velocities.length; j++) {
+      pos[j * 3] += velocities[j].vx * 0.016;
+      pos[j * 3 + 1] += (velocities[j].vy - 9.8 * elapsed) * 0.016;
+      pos[j * 3 + 2] += velocities[j].vz * 0.016;
+    }
+    pSystem.geometry.attributes.position.needsUpdate = true;
+    pSystem.material.opacity = Math.max(0, 1 - elapsed * 1.5);
+
+    if (elapsed > 1.2) {
+      particlesGroup.remove(pSystem);
+      pSystem.geometry.dispose();
+      pSystem.material.dispose();
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+// --- 控制与交互 ---
+btnRestart.addEventListener('click', () => {
+  loadLevel(currentLevelIdx);
+});
+
+btnNext.addEventListener('click', () => {
+  if (currentLevelIdx + 1 < LEVELS.length) {
+    loadLevel(currentLevelIdx + 1);
+  } else {
+    loadLevel(0);
+  }
+});
+
+// 方向键映射：根据 160° 视角象限计算对应按键
+// 160° 位于第二象限接近 180°，键盘直觉映射：
+// 屏幕按 UP (W / ↑) -> 网格 DOWN (r+)
+// 屏幕按 RIGHT (D / →) -> 网格 LEFT (c-)
+// 屏幕按 DOWN (S / ↓) -> 网格 UP (r-)
+// 屏幕按 LEFT (A / ←) -> 网格 RIGHT (c+)
+function getMappedDirection(inputDir) {
+  const map = {
+    'UP': 'DOWN',
+    'RIGHT': 'LEFT',
+    'DOWN': 'UP',
+    'LEFT': 'RIGHT'
+  };
+  return map[inputDir] || inputDir;
+}
+
+window.addEventListener('keydown', (e) => {
+  if (isAnimating || fallAnim || winAnim) return;
+
+  const code = e.code;
+  if (code === 'KeyR') {
+    loadLevel(currentLevelIdx);
+    return;
+  }
+
+  let screenDir = null;
+  if (code === 'KeyW' || code === 'ArrowUp') screenDir = 'UP';
+  else if (code === 'KeyD' || code === 'ArrowRight') screenDir = 'RIGHT';
+  else if (code === 'KeyS' || code === 'ArrowDown') screenDir = 'DOWN';
+  else if (code === 'KeyA' || code === 'ArrowLeft') screenDir = 'LEFT';
+
+  if (screenDir) {
+    e.preventDefault();
+    makeMove(getMappedDirection(screenDir));
+  }
+});
+
+// --- 移动端触控滑动支持 ---
+let touchStartX = 0, touchStartY = 0;
+const SWIPE_THRESHOLD = 30;
+
+window.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }
+}, { passive: true });
+
+window.addEventListener('touchend', (e) => {
+  if (e.changedTouches.length === 1) {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    if (Math.max(absX, absY) > SWIPE_THRESHOLD) {
+      let screenDir = null;
+      if (absX > absY) {
+        screenDir = (dx > 0) ? 'RIGHT' : 'LEFT';
+      } else {
+        screenDir = (dy > 0) ? 'DOWN' : 'UP';
+      }
+
+      if (screenDir) {
+        makeMove(getMappedDirection(screenDir));
+      }
+    }
+  }
+}, { passive: true });
+
+// 启动游戏引擎
+initThree();
+requestAnimationFrame(animate);
+
+</script>
+</body>
+</html>

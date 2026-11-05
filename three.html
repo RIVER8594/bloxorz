@@ -74,7 +74,12 @@
       position: relative;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
       border-radius: 14px;
-      background: #090d14;
+      background-color: #090d14;
+      background-image: url('bg-level-1.jpg');
+      background-size: cover;
+      background-position: center top;
+      background-repeat: no-repeat;
+      transition: background-image 0.4s ease-in-out;
       overflow: hidden;
       width: 800px;
       height: 600px;
@@ -146,6 +151,8 @@
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="daimyo-lord-78364a.js"></script>
+  <script src="dragon-slayer-91ab39.js"></script>
 </head>
 <body>
 
@@ -157,6 +164,8 @@
     <div class="hud-badge">
       <span>步数: <span id="moves-display" class="hud-val">0</span></span>
     </div>
+    <button id="btn-bg" class="btn" title="切换密室背景">🏰 密室: 远古石室</button>
+    <button id="btn-char" class="btn" title="切换 Polyfork 3D 角色">👤 角色: 战国大名</button>
     <button id="btn-restart" class="btn" title="重新开始当前关 (R)">↺ 重置</button>
     <a href="index.html" class="btn" title="切换至 Canvas 2D 原生轻量版">⇄ Canvas版</a>
   </div>
@@ -182,10 +191,33 @@ const container = document.getElementById('game-container');
 const levelDisplay = document.getElementById('level-display');
 const movesDisplay = document.getElementById('moves-display');
 const btnRestart = document.getElementById('btn-restart');
+const btnChar = document.getElementById('btn-char');
+const btnBg = document.getElementById('btn-bg');
 const overlayBanner = document.getElementById('overlay-banner');
 const bannerTitle = document.getElementById('banner-title');
 const bannerMsg = document.getElementById('banner-msg');
 const btnNext = document.getElementById('btn-next');
+
+// 角色切换配置 ('daimyo': 战国大名, 'dragon': 屠龙勇士)
+let currentCharType = 'daimyo';
+const charTemplates = {};
+
+// 3 张等轴测密室背景配置
+const BG_THEMES = [
+  { file: 'bg-level-1.jpg', name: '远古石室' },
+  { file: 'bg-level-2.jpg', name: '战国天守' },
+  { file: 'bg-level-3.jpg', name: '炼金齿轮' }
+];
+let currentBgIdx = 0;
+
+function applyBackgroundTheme(idx) {
+  currentBgIdx = ((idx % BG_THEMES.length) + BG_THEMES.length) % BG_THEMES.length;
+  const theme = BG_THEMES[currentBgIdx];
+  container.style.backgroundImage = `url('${theme.file}')`;
+  if (btnBg) {
+    btnBg.innerText = `🏰 密室: ${theme.name}`;
+  }
+}
 
 // 关卡数据 (与原版完全一致)
 const LEVELS = [
@@ -244,6 +276,24 @@ let blockMesh = null;
 let pivotGroup = new THREE.Group();
 let particlesGroup = new THREE.Group();
 let holeLight = null;
+let holeEffectData = null;
+
+// 生成终点空洞动态能量光束贴图 (竖向渐变)
+function createBeamTexture() {
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 128;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 128);
+  grad.addColorStop(0.0, 'rgba(56, 189, 248, 0.0)');
+  grad.addColorStop(0.65, 'rgba(56, 189, 248, 0.22)');
+  grad.addColorStop(1.0, 'rgba(125, 211, 252, 0.72)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
+}
 
 // 视角控制：匹配 160° 等轴测视角
 const CAMERA_DIST = 45;
@@ -251,10 +301,10 @@ const CAMERA_AZIMUTH = 160 * (Math.PI / 180); // 水平航向角 160°
 const CAMERA_ELEVATION = 35.264 * (Math.PI / 180); // 等轴测仰角 ~35.264°
 
 function initThree() {
-  // 1. 场景
+  // 1. 场景 (透明背景以透出等轴测密室背景图)
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0f18);
-  scene.fog = new THREE.FogExp2(0x0a0f18, 0.012);
+  scene.background = null;
+  scene.fog = new THREE.FogExp2(0x090d14, 0.008);
 
   // 2. 摄像机 (正交等轴测摄像机)
   const aspect = container.clientWidth / container.clientHeight;
@@ -272,7 +322,8 @@ function initThree() {
   scene.add(camera);
 
   // 3. 渲染器
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setClearColor(0x000000, 0);
   renderer.setSize(container.clientWidth, container.clientHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
@@ -435,6 +486,7 @@ function loadLevel(lvlIdx) {
   levelDisplay.innerText = `${currentLevelIdx + 1} / ${LEVELS.length}`;
   movesDisplay.innerText = moves;
   overlayBanner.style.display = 'none';
+  applyBackgroundTheme(currentLevelIdx);
 
   // 清空棋盘
   while (boardGroup.children.length > 0) {
@@ -501,16 +553,120 @@ function loadLevel(lvlIdx) {
         ww.position.set(pos.x - hw / 2, -hh / 2, pos.z);
         boardGroup.add(ww);
 
-        // 方洞边框发光线
-        const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(TILE_UNIT * 0.96, 0.02, TILE_UNIT * 0.96));
-        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2.5 }));
-        line.position.set(pos.x, 0.01, pos.z);
+        // 方洞边框发光线 (双层高光描边)
+        const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(TILE_UNIT * 0.96, 0.04, TILE_UNIT * 0.96));
+        const edgeMat = new THREE.LineBasicMaterial({
+          color: 0x7dd3fc,
+          transparent: true,
+          opacity: 0.95,
+          blending: THREE.AdditiveBlending
+        });
+        const line = new THREE.LineSegments(edges, edgeMat);
+        line.position.set(pos.x, 0.02, pos.z);
         boardGroup.add(line);
 
-        // 终点青色微光
-        holeLight = new THREE.PointLight(0x38bdf8, 1.5, 6);
-        holeLight.position.set(pos.x, 0.6, pos.z);
+        // 1. 洞口呼吸光晕底座与向外扩散的脉冲波纹环
+        const innerGlowGeo = new THREE.RingGeometry(0.18, TILE_UNIT * 0.44, 32);
+        const innerGlowMat = new THREE.MeshBasicMaterial({
+          color: 0x38bdf8,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.45,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        const innerGlowMesh = new THREE.Mesh(innerGlowGeo, innerGlowMat);
+        innerGlowMesh.rotation.x = -Math.PI / 2;
+        innerGlowMesh.position.set(pos.x, 0.015, pos.z);
+        boardGroup.add(innerGlowMesh);
+
+        const pulseRings = [];
+        for (let ri = 0; ri < 2; ri++) {
+          const rGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(TILE_UNIT * 0.5, 0.01, TILE_UNIT * 0.5));
+          const rMat = new THREE.LineBasicMaterial({
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+          });
+          const rLine = new THREE.LineSegments(rGeo, rMat);
+          rLine.position.set(pos.x, 0.025, pos.z);
+          boardGroup.add(rLine);
+          pulseRings.push({ mesh: rLine, phaseOffset: ri * 0.5 });
+        }
+
+        // 2. 向上升腾的四棱能量体积光柱 (Additive 渐变透明)
+        const beamHeight = 2.6;
+        const beamGeo = new THREE.CylinderGeometry(
+          TILE_UNIT * 0.52,
+          TILE_UNIT * 0.65,
+          beamHeight,
+          4,
+          1,
+          true
+        );
+        beamGeo.rotateY(Math.PI / 4);
+        const beamMat = new THREE.MeshBasicMaterial({
+          map: createBeamTexture(),
+          color: 0x38bdf8,
+          transparent: true,
+          opacity: 0.65,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        const beamMesh = new THREE.Mesh(beamGeo, beamMat);
+        beamMesh.position.set(pos.x, beamHeight / 2 - 0.1, pos.z);
+        boardGroup.add(beamMesh);
+
+        // 3. 持续从洞底袅袅升起的星尘发光粒子
+        const sparkCount = 24;
+        const sparkGeo = new THREE.BufferGeometry();
+        const sparkPos = new Float32Array(sparkCount * 3);
+        const sparkMeta = [];
+        for (let si = 0; si < sparkCount; si++) {
+          const rx = (Math.random() - 0.5) * TILE_UNIT * 0.78;
+          const rz = (Math.random() - 0.5) * TILE_UNIT * 0.78;
+          const ry = Math.random() * 2.4;
+          sparkPos[si * 3] = pos.x + rx;
+          sparkPos[si * 3 + 1] = ry;
+          sparkPos[si * 3 + 2] = pos.z + rz;
+          sparkMeta.push({
+            baseX: pos.x + rx,
+            baseZ: pos.z + rz,
+            speed: 0.6 + Math.random() * 0.9,
+            swaySpeed: 1.5 + Math.random() * 2.0,
+            swayAmp: 0.04 + Math.random() * 0.08,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
+        sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+        const sparkMat = new THREE.PointsMaterial({
+          color: 0x7dd3fc,
+          size: 0.24,
+          transparent: true,
+          opacity: 0.85,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        const sparkPoints = new THREE.Points(sparkGeo, sparkMat);
+        boardGroup.add(sparkPoints);
+
+        // 终点青色动态点光源
+        holeLight = new THREE.PointLight(0x38bdf8, 2.2, 8);
+        holeLight.position.set(pos.x, 0.8, pos.z);
         boardGroup.add(holeLight);
+
+        holeEffectData = {
+          edgeMat,
+          innerGlowMesh,
+          innerGlowMat,
+          pulseRings,
+          beamMesh,
+          beamMat,
+          sparkPoints,
+          sparkMeta
+        };
         continue;
       }
 
@@ -535,62 +691,126 @@ function loadLevel(lvlIdx) {
   createBlock(lvl.start.r, lvl.start.c, 'V');
 }
 
-// --- 方块主角创建与状态管理 ---
-function createBlock(r, c, orientation) {
+// --- 3D 角色主角创建与状态管理 ---
+function buildCharacterVisual(charType) {
+  let rawGroup = null;
+  try {
+    if (charType === 'dragon' && typeof window.createDragonSlayer === 'function') {
+      rawGroup = window.createDragonSlayer();
+    } else if (typeof window.createDaimyoLord === 'function') {
+      rawGroup = window.createDaimyoLord();
+    }
+  } catch (err) {
+    console.warn('Character model build error, falling back to box:', err);
+    rawGroup = null;
+  }
+
+  if (!rawGroup) {
+    // 兜底方块
+    const fallbackGeo = new THREE.BoxGeometry(BLOCK_UNIT * 0.95, 2 * BLOCK_UNIT * 0.95, BLOCK_UNIT * 0.95);
+    const fallbackMesh = new THREE.Mesh(fallbackGeo, blockMaterial);
+    fallbackMesh.castShadow = true;
+    fallbackMesh.receiveShadow = true;
+    return fallbackMesh;
+  }
+
+  // 开启阴影并确保包围盒完整渲染
+  rawGroup.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+      child.frustumCulled = false;
+    }
+  });
+
+  // 测量角色原始高度并对齐到方块 1x2x1 的包络中心 (高度约 3.8 单位)
+  rawGroup.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(rawGroup);
+  const size = new THREE.Vector3();
+  const center = new THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(center);
+
+  const targetHeight = 2 * BLOCK_UNIT * 0.95; // 3.8
+  const modelHeight = size.y > 0.1 ? size.y : 1.72;
+  const scaleFactor = targetHeight / modelHeight;
+
+  const wrapper = new THREE.Group();
+  rawGroup.scale.set(scaleFactor, scaleFactor, scaleFactor);
+  // 将角色中心对齐到 wrapper 局部坐标原点 (0, 0, 0)，脚底恰好位于 -targetHeight/2
+  rawGroup.position.set(
+    -center.x * scaleFactor,
+    -box.min.y * scaleFactor - targetHeight / 2,
+    -center.z * scaleFactor
+  );
+  // 初始面朝棋盘前方（通关终点洞方向，即 +X / c+ 方向）
+  rawGroup.rotation.y = Math.PI / 2;
+  wrapper.add(rawGroup);
+
+  return wrapper;
+}
+
+function createBlock(r, c, orientation, preservedQuaternion = null) {
   if (blockMesh) {
     if (blockMesh.parent) blockMesh.parent.remove(blockMesh);
-    if (blockMesh.geometry) blockMesh.geometry.dispose();
     blockMesh = null;
   }
 
   blockState = { r, c, orientation };
 
-  // 方块网格尺寸定义
-  let sx = 1, sy = 2, sz = 1;
-  if (orientation === 'H_ROW') { sx = 1; sy = 1; sz = 2; }
-  if (orientation === 'H_COL') { sx = 2; sy = 1; sz = 1; }
+  // 创建容器节点，内部承载 Polyfork 3D 角色模型（本体始终为 1x2x1 的刚体包络）
+  blockMesh = new THREE.Group();
+  const charVisual = buildCharacterVisual(currentCharType);
+  blockMesh.add(charVisual);
 
-  const geo = new THREE.BoxGeometry(
-    sx * BLOCK_UNIT * 0.95,
-    sy * BLOCK_UNIT * 0.95,
-    sz * BLOCK_UNIT * 0.95
+  // 1x2x1 刚体淡光边框（随角色一起自然翻滚，清晰标识所占空间）
+  const footprintEdges = new THREE.EdgesGeometry(
+    new THREE.BoxGeometry(BLOCK_UNIT * 0.92, 2 * BLOCK_UNIT * 0.92, BLOCK_UNIT * 0.92)
   );
+  const footprintLine = new THREE.LineSegments(
+    footprintEdges,
+    new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.22 })
+  );
+  blockMesh.add(footprintLine);
 
-  blockMesh = new THREE.Mesh(geo, blockMaterial);
-  blockMesh.castShadow = true;
-  blockMesh.receiveShadow = true;
+  // 如果传入了保留的四元数（例如中途切换角色），则沿用当前翻滚姿态；否则按初始姿态设置
+  if (preservedQuaternion) {
+    blockMesh.quaternion.copy(preservedQuaternion);
+  } else {
+    blockMesh.rotation.set(0, 0, 0);
+    if (orientation === 'H_ROW') {
+      blockMesh.rotation.x = Math.PI / 2;
+    } else if (orientation === 'H_COL') {
+      blockMesh.rotation.z = -Math.PI / 2;
+    }
+  }
 
-  // 轮廓描边
-  const edges = new THREE.EdgesGeometry(geo);
-  const line = new THREE.LineSegments(edges, blockEdgeMaterial);
-  blockMesh.add(line);
-
-  updateBlockMeshTransform();
+  snapBlockPosition();
   scene.add(blockMesh);
 }
 
-function updateBlockMeshTransform() {
+// 仅校准角色中心的世界坐标位置，完全保留当前自然翻滚后的旋转姿态（支持正立、平躺、倒立等）
+function snapBlockPosition() {
   if (!blockMesh || !blockState) return;
   const center = getLevelCenter(currentLevelIdx);
   const { r, c, orientation } = blockState;
 
-  let sx = 1, sy = 2, sz = 1;
+  let sy = 2;
   let cx = c, cz = r;
 
   if (orientation === 'V') {
-    sx = 1; sy = 2; sz = 1;
+    sy = 2;
     cx = c; cz = r;
   } else if (orientation === 'H_ROW') {
-    sx = 1; sy = 1; sz = 2;
+    sy = 1;
     cx = c; cz = r + 0.5;
   } else if (orientation === 'H_COL') {
-    sx = 2; sy = 1; sz = 1;
+    sy = 1;
     cx = c + 0.5; cz = r;
   }
 
   const wPos = gridToWorld(cx, cz, center);
   blockMesh.position.set(wPos.x, (sy * BLOCK_UNIT * 0.95) / 2, wPos.z);
-  blockMesh.rotation.set(0, 0, 0);
   blockMesh.scale.set(1, 1, 1);
 }
 
@@ -735,7 +955,8 @@ function makeMove(dir) {
     if (progress < 1) {
       requestAnimationFrame(animStep);
     } else {
-      // 动画完成，卸载回全局场景并重置为最终姿态
+      // 先将枢轴旋转精确对齐到 90°，再卸载回全局场景，完整保留自然翻滚后的四元数姿态
+      pivotGroup.setRotationFromAxisAngle(rotAxis, rotAngle);
       scene.attach(blockMesh);
       pivotGroup.rotation.set(0, 0, 0);
 
@@ -743,8 +964,8 @@ function makeMove(dir) {
       blockState.c = nextC;
       blockState.orientation = nextOri;
 
-      // 重构几何体适应新姿态尺寸
-      createBlock(nextR, nextC, nextOri);
+      // 仅对齐角色中心网格位置，不重置角色朝向（自然保留正立/平躺/倒立/侧卧）
+      snapBlockPosition();
       isAnimating = false;
 
       // 表面判定
@@ -819,6 +1040,41 @@ function createWinParticles(x, z) {
 function animate(timestamp) {
   requestAnimationFrame(animate);
 
+  const timeSec = (timestamp || performance.now()) * 0.001;
+
+  // 0. 终点空洞动态能量光效更新
+  if (holeEffectData) {
+    const pulse = 0.5 + 0.5 * Math.sin(timeSec * 3.2);
+    if (holeLight) {
+      holeLight.intensity = 1.8 + pulse * 1.4;
+    }
+    holeEffectData.edgeMat.opacity = 0.7 + pulse * 0.3;
+    holeEffectData.innerGlowMat.opacity = 0.28 + pulse * 0.25;
+    const glowScale = 0.92 + pulse * 0.16;
+    holeEffectData.innerGlowMesh.scale.set(glowScale, glowScale, 1);
+    holeEffectData.beamMat.opacity = 0.45 + pulse * 0.3;
+
+    // 向外扩散的脉冲方环
+    for (const ring of holeEffectData.pulseRings) {
+      const p = (timeSec * 0.65 + ring.phaseOffset) % 1;
+      const s = 0.6 + p * 1.45;
+      ring.mesh.scale.set(s, 1, s);
+      ring.mesh.material.opacity = (1 - p) * 0.85;
+    }
+
+    // 向上飘升的星尘光点
+    const posArr = holeEffectData.sparkPoints.geometry.attributes.position.array;
+    const metas = holeEffectData.sparkMeta;
+    for (let i = 0; i < metas.length; i++) {
+      const m = metas[i];
+      let y = (posArr[i * 3 + 1] + m.speed * 0.016) % 2.4;
+      posArr[i * 3] = m.baseX + Math.sin(timeSec * m.swaySpeed + m.phase) * m.swayAmp;
+      posArr[i * 3 + 1] = y;
+      posArr[i * 3 + 2] = m.baseZ + Math.cos(timeSec * m.swaySpeed + m.phase) * m.swayAmp;
+    }
+    holeEffectData.sparkPoints.geometry.attributes.position.needsUpdate = true;
+  }
+
   // 1. 摔落深渊逻辑
   if (fallAnim) {
     const elapsed = timestamp - fallAnim.startTime;
@@ -888,6 +1144,24 @@ function animate(timestamp) {
 btnRestart.addEventListener('click', () => {
   loadLevel(currentLevelIdx);
 });
+
+if (btnBg) {
+  btnBg.addEventListener('click', () => {
+    applyBackgroundTheme(currentBgIdx + 1);
+  });
+}
+
+if (btnChar) {
+  btnChar.addEventListener('click', () => {
+    if (isAnimating || fallAnim || winAnim) return;
+    currentCharType = (currentCharType === 'daimyo') ? 'dragon' : 'daimyo';
+    btnChar.innerText = (currentCharType === 'daimyo') ? '👤 角色: 战国大名' : '👤 角色: 屠龙勇士';
+    if (blockState) {
+      const savedQuat = blockMesh ? blockMesh.quaternion.clone() : null;
+      createBlock(blockState.r, blockState.c, blockState.orientation, savedQuat);
+    }
+  });
+}
 
 btnNext.addEventListener('click', () => {
   if (currentLevelIdx + 1 < LEVELS.length) {

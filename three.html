@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#080e17">
   <meta name="description" content="十道空间谜题。翻滚改变姿态，点亮日月符文，留下回声，逃离十层密室。">
   <title>滚动方块 · 十层密室</title>
-  <link rel="stylesheet" href="game.css">
+  <link rel="stylesheet" href="game.css?v=audio-1">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <script defer src="vendor/three.min.js"></script>
   <script defer src="vendor/GLTFLoader.js"></script>
@@ -14,13 +14,14 @@
   <script defer src="game-core.js"></script>
   <script defer src="levels.js"></script>
   <script defer src="game-renderers.js"></script>
-  <script defer src="game-app.js"></script>
+  <script defer src="game-audio.js?v=audio-1"></script>
+  <script defer src="game-app.js?v=audio-1"></script>
 </head>
 <body data-renderer="three">
   <main class="shell">
     <header class="site-head">
       <div class="brand"><span>◇</span>滚动方块 <span class="edition">/ 十层密室</span></div>
-      <button id="btn-home" class="quiet" style="font-size:12px;padding:6px 13px">首页</button>
+      <div class="header-actions"><button id="btn-audio" class="quiet" title="音乐、音效与其他设置">♫ 声音</button><button id="btn-home" class="quiet">首页</button></div>
     </header>
     <div class="toolbar">
       <div class="level-info">

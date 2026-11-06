@@ -156,9 +156,10 @@
       // The character remains on the author's public CDN; only the rendering library is bundled locally.
       new THREE.GLTFLoader().load('https://polyfork.dev/cdn/kid-in-a-skeleton-6bb49d.glb',gltf=>{
         const model=gltf.scene;model.rotation.y=Math.PI;
+        const bag=model.getObjectByName('attach-righthand-mesh');if(bag){bag.parent.remove(bag);bag.geometry.dispose();}
         const left=model.getObjectByName('LeftArm'),right=model.getObjectByName('RightArm');if(left)left.rotation.z=-Math.PI*.43;if(right)right.rotation.z=Math.PI*.43;
         model.updateMatrixWorld(true);
-        // Measure the lowered-arm pose, including the bag, rather than the exported T-pose.
+        // Measure the lowered-arm pose after removing the bag rather than the exported T-pose.
         const box=new THREE.Box3(),point=new THREE.Vector3();
         model.traverse(o=>{
           if(!o.isMesh)return;o.castShadow=true;o.receiveShadow=true;

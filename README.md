@@ -74,4 +74,4 @@ node scripts/verify-game.js
 - `escape-background.js` / `assets/backgrounds/`：三章密室背景，章节变化时渐变切换。
 - `vendor/`：固定版本的 Three.js r128 和 GLTFLoader，许可保存在 `THREE-LICENSE.txt`。
 
-3D 角色使用 Polyfork 的 [Kid in a Skeleton Suit](https://polyfork.dev/asset/kid-in-a-skeleton-6bb49d)，从官方 CDN 加载。骷髅服、兜帽、手套、运动鞋和手提袋沿用原模型，双臂放下，按实际站姿居中并适配棋盘大小，保留日月端点与翻滚动作。加载失败时用带日月端点的方块继续游玩。玩法和存档不依赖人物资源成功加载。Canvas 版无渲染库依赖。
+3D 角色使用 Polyfork 的 [Kid in a Skeleton Suit](https://polyfork.dev/asset/kid-in-a-skeleton-6bb49d)，从官方 CDN 加载。骷髅服、兜帽、手套和运动鞋沿用原模型，移除手提袋，双臂放下，按实际站姿居中并适配棋盘大小，保留日月端点与翻滚动作。加载失败时用带日月端点的方块继续游玩。玩法和存档不依赖人物资源成功加载。Canvas 版无渲染库依赖。

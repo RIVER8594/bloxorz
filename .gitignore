@@ -1,0 +1,4 @@
+# 本地备用 GLB 不随网页发布；玩家从 Polyfork 官方 CDN 加载。
+/assets/schoolkid-da94c1.glb
+/.playwright-cli/
+/output/

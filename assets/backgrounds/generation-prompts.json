@@ -1,0 +1,41 @@
+{
+  "method": "OpenAI Responses native image_generation; artwork displayed using CanvasRenderingContext2D.drawImage",
+  "camera": {
+    "projection": "orthographic",
+    "azimuthDegrees": 160,
+    "elevationDegrees": 35.264,
+    "referenceAspectRatio": "4:3",
+    "horizontalWorldAxisScreenAnglesDegrees": [
+      -11.9,
+      57.77
+    ]
+  },
+  "composition": "Continuous vertical prison shaft: architecture on the side edges only; no rear cross-wall, door, ceiling, horizon or floor. Dark central void runs uninterrupted from the top to the bottom. Matching top and bottom edges allow seamless vertical repetition.",
+  "rooms": [
+    {
+      "file": "room-01-stone-loop.png",
+      "theme": "Weathered stone prison, ancient sealed portal, rusted locks, hanging chains, small amber wall torches; desaturated teal slate, moss, amber accents.",
+      "prompt": "Use case: precise-object-edit / stylized-concept. Create ONE finished raster game background, image 1 of 3, using the visible stone dungeon background as the visual reference. This is an asset for the existing Bloxorz rolling puzzle. Output a 4:3 landscape image. Transform the chamber into a CONTINUOUS VERTICAL STONE PRISON SHAFT that can repeat seamlessly top to bottom during downward scrolling. Crucial: remove the rear cross-wall, central door, arch, ceiling, and any horizontal obstruction that spans the center. Keep a dark empty abyss through the entire middle from the TOP EDGE to the BOTTOM EDGE, covering x=20–80%. Dense dark stone masonry, aged iron vertical pipes and long chains frame the LEFT and RIGHT edges only, their vertical lines stay straight, run through the top and bottom at identical x positions, thickness, texture and brightness. Upper and lower image edges must match EXACTLY when tiled vertically, matching stone courses, pipelines, chains, cyan haze and lighting with no horizontal stripe or seam, no fade-to-black at either edge. No sky, no horizon, no endpoint. Preserve the current polished atmospheric 3D concept-art style and dim charcoal/teal stone with very sparse warm amber wall torches in the side walls at middle heights. Orthographic elevated camera consistent with the reference; vertical shaft edges cannot converge. Center remains dark and quiet, suitable behind the bright live puzzle board, absolutely no floor, no floating platform, no game board, no character, no UI, no text, no watermark. The final image itself is a single vertically seamless repeating tile, not a collage or proof sheet.",
+      "originalFile": "room-01-stone.png"
+    },
+    {
+      "file": "room-02-alchemy-loop.png",
+      "theme": "Arcane alchemy chamber, sealed rune door, peripheral shelves with glass vials, brass instruments, subtle violet-blue illumination; deep indigo slate, violet and muted brass accents.",
+      "prompt": "Use case: stylized-concept. Generate ONE finished raster game background, image 2 of a three-image set. Use the just-generated continuous stone prison shaft as a strict framing reference and the earlier alchemy dungeon as a theme reference. Output 4:3 landscape. A dark ARCANE ALCHEMY PRISON SHAFT, designed to repeat seamlessly from TOP to BOTTOM when vertically scrolled. Side architecture occupies only leftmost 20% and rightmost 20%, leaving central 60% as uninterrupted nearly black indigo empty vertical abyss at ALL heights. Vertical old stone pillars, long iron chains and straight aged brass pipes continue in the same x positions through both top and bottom edges. Small restrained violet glass-vial lights and narrow brass alchemical fixtures decorate the side walls at middle heights; subtle violet mist at inner sides. Top and bottom edges must tile seamlessly with identical structural positions, scale, masonry courses, mist and illumination, no visible horizontal seam or fading stripe. Camera is elevated orthographic, no vanishing point, preserve the previous shaft's composition and atmospheric polished 3D game-art style. No rear wall spanning the center, no central door, no arch, no ceiling or floor, no bridge, no sky, no horizon. Do not put anything across the central void. Very subdued deep charcoal, slate, indigo/violet, muted brass highlights. Background plate only, no puzzle platforms, no characters, no UI, no words or readable markings, no logo or watermark. A SINGLE vertically repeatable background tile, no montage.",
+      "originalFile": "room-02-alchemy.png"
+    },
+    {
+      "file": "room-03-clockwork-loop.png",
+      "theme": "Clockwork prison, heavy riveted vault door, large gears and copper pipes on peripheral walls, cold cyan indicator lights and sparse warm amber fixtures; dark steel, aged copper, teal mist.",
+      "prompt": "Use case: stylized-concept. Generate ONE raster game background, third and final image in the continuous prison-shaft set. Use the just-generated stone/alchemy shafts as framing and visual-style references. A dark CLOCKWORK MECHANICAL PRISON SHAFT, landscape 4:3, vertically tileable seamlessly TOP to BOTTOM for downward scrolling behind a live puzzle. Keep central x=23–77% completely open as nearly black vertical abyss from top edge to bottom edge. Dark riveted steel and stone sidewalls, aged copper pipelines, chains, and small iron gears frame the leftmost and rightmost 23% only. The vertical pipe and chain families remain exactly aligned at identical x coordinates, thickness and lighting along top and bottom borders. Sparse cold cyan lights on the side walls at middle heights, tiny amber highlights, restrained teal mist in inner side regions. Exact continuous matching top/bottom border structure and color, no horizon, no vanishing-point convergence, no black fade stripe, no horizontal seam. Elevated orthographic cinematic 3D environment art in the same dark restrained material style as the reference. Remove every rear wall, central vault door, arch, horizontal bar or overhang spanning the center; no ceiling, no floor, no bridge, no platform, no characters, no live board, no UI, no letters, no logos or watermark. Long vertical structure should clearly communicate an endless shaft. Single finished vertically seamless repeating image tile, no grid and no proof collage.",
+      "originalFile": "room-03-clockwork.png"
+    }
+  ],
+  "transition": {
+    "durationMilliseconds": 2000,
+    "direction": "character ascends; background moves downward",
+    "repeatPeriod": "one container height",
+    "seamOverlapFraction": 0.045,
+    "nextThemeBlendStart": 0.7
+  }
+}

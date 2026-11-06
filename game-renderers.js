@@ -154,11 +154,23 @@
     loadCharacter(){
       if(!THREE.GLTFLoader)return;
       // The character remains on the author's public CDN; only the rendering library is bundled locally.
-      new THREE.GLTFLoader().load('https://polyfork.dev/cdn/schoolkid-da94c1.glb',gltf=>{
-        const model=gltf.scene,box=new THREE.Box3().setFromObject(model),height=box.getSize(new THREE.Vector3()).y;if(!height)return;
-        const scale=3.8/height;model.scale.setScalar(scale);model.position.set(0,-1.9-box.min.y*scale,0);model.rotation.y=Math.PI;
+      new THREE.GLTFLoader().load('https://polyfork.dev/cdn/kid-in-a-skeleton-6bb49d.glb',gltf=>{
+        const model=gltf.scene;model.rotation.y=Math.PI;
         const left=model.getObjectByName('LeftArm'),right=model.getObjectByName('RightArm');if(left)left.rotation.z=-Math.PI*.43;if(right)right.rotation.z=Math.PI*.43;
-        model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});this.dispose(this.player);this.player.add(model);this.badges(this.player);
+        model.updateMatrixWorld(true);
+        // Measure the lowered-arm pose, including the bag, rather than the exported T-pose.
+        const box=new THREE.Box3(),point=new THREE.Vector3();
+        model.traverse(o=>{
+          if(!o.isMesh)return;o.castShadow=true;o.receiveShadow=true;
+          const positions=o.geometry.getAttribute('position');
+          for(let i=0;i<positions.count;i++){
+            point.fromBufferAttribute(positions,i);if(o.isSkinnedMesh)o.boneTransform(i,point);
+            box.expandByPoint(point.applyMatrix4(o.matrixWorld));
+          }
+        });
+        const height=box.getSize(new THREE.Vector3()).y;if(!height||!Number.isFinite(height))return;
+        const scale=3.8/height,center=box.getCenter(new THREE.Vector3());model.scale.setScalar(scale);model.position.copy(center).multiplyScalar(-scale);
+        this.dispose(this.player);this.player.add(model);this.badges(this.player);
       },undefined,()=>{document.getElementById('edition').textContent='3D · 端点方块';});
     }
     quaternion(rotation){const m=new THREE.Matrix4();m.set(rotation[0],rotation[3],rotation[6],0,rotation[1],rotation[4],rotation[7],0,rotation[2],rotation[5],rotation[8],0,0,0,0,1);return new THREE.Quaternion().setFromRotationMatrix(m);}

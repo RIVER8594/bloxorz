@@ -85,19 +85,20 @@ class EscapeRoomBackground {
       ctx.fillRect(0, 0, width, height);
       if (!room.loaded) continue;
 
-      // 为生成图的边缘保留很窄的融合带，消除滚动时的像素接缝。
-      // 图片保持原比例，融合后的重复周期严格等于一屏高度。
+      // 等比铺满窗口：根据宽、高中较大的缩放比例居中裁切，避免两侧留黑。
+      // 为上下滚动保留窄融合带，重复周期仍严格等于一屏高度。
       const overlap = Math.max(2, Math.round(height * 0.045));
-      const imageHeight = height + overlap;
-      const scale = imageHeight / room.image.naturalHeight;
+      const scale = Math.max(width / room.image.naturalWidth, (height + overlap) / room.image.naturalHeight);
       const imageWidth = room.image.naturalWidth * scale;
+      const imageHeight = room.image.naturalHeight * scale;
       const imageX = (width - imageWidth) / 2;
-      ctx.drawImage(room.image, imageX, -overlap, imageWidth, imageHeight);
+      const imageY = (height + overlap - imageHeight) / 2;
+      ctx.drawImage(room.image, imageX, imageY - overlap, imageWidth, imageHeight);
       const seam = document.createElement('canvas');
       seam.width = width;
       seam.height = overlap;
       const seamCtx = seam.getContext('2d');
-      seamCtx.drawImage(room.image, imageX, 0, imageWidth, imageHeight);
+      seamCtx.drawImage(room.image, imageX, imageY, imageWidth, imageHeight);
       seamCtx.globalCompositeOperation = 'destination-in';
       const mask = seamCtx.createLinearGradient(0, 0, 0, overlap);
       mask.addColorStop(0, 'rgba(0, 0, 0, 0)');

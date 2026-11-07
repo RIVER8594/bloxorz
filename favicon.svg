@@ -1,1 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#111c2b"/><path d="M32 10 54 32 32 54 10 32Z" fill="none" stroke="#42d9e8" stroke-width="5"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">滚动方块</title>
+  <desc id="desc">带有日月符文的翻滚方块图标</desc>
+  <defs>
+    <linearGradient id="bg" x1="18" y1="12" x2="110" y2="116" gradientUnits="userSpaceOnUse"><stop stop-color="#182b3b"/><stop offset="1" stop-color="#070d18"/></linearGradient>
+    <linearGradient id="cube" x1="32" y1="25" x2="96" y2="101" gradientUnits="userSpaceOnUse"><stop stop-color="#58e3eb"/><stop offset=".52" stop-color="#25a9c2"/><stop offset="1" stop-color="#12627f"/></linearGradient>
+    <linearGradient id="side" x1="60" y1="56" x2="97" y2="98" gradientUnits="userSpaceOnUse"><stop stop-color="#187e9a"/><stop offset="1" stop-color="#0b405d"/></linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bg)"/>
+  <path d="M14 93 64 113l50-20" fill="none" stroke="#203c4e" stroke-width="3" stroke-linecap="round"/>
+  <path d="M64 17 107 39 64 61 21 39Z" fill="#244656" stroke="#68eaf0" stroke-width="3" stroke-linejoin="round" filter="url(#glow)"/>
+  <path d="M21 39v48l43 22V61Z" fill="url(#cube)" stroke="#7df3f1" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M64 61v48l43-22V39Z" fill="url(#side)" stroke="#3bc6d4" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M64 17v44M44 45 64 55l20-10" fill="none" stroke="#a8ffff" stroke-width="2" opacity=".8"/>
+  <circle cx="48" cy="76" r="10" fill="#f6d77a" stroke="#fff0af" stroke-width="2"/>
+  <circle cx="53" cy="72" r="9" fill="#1680a0"/>
+  <path d="M83 71a10 10 0 1 1-7 17 8 8 0 1 0 7-17Z" fill="#d9f3ff" stroke="#fff" stroke-width="1.5"/>
+  <circle cx="98" cy="31" r="3" fill="#f6d77a"/><circle cx="29" cy="27" r="2" fill="#8ef3ef"/>
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="none" stroke="#315366" stroke-width="3"/>
+</svg>

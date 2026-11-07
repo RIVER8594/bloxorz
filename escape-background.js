@@ -20,6 +20,12 @@ class EscapeRoomBackground {
       { name: '炼金密室', source: 'assets/backgrounds/room-02-alchemy-loop.png', haze: '107, 88, 145' },
       { name: '机械监牢', source: 'assets/backgrounds/room-03-clockwork-loop.png', haze: '107, 127, 135' }
     ];
+    this.monster = new Image();
+    this.monster.onload = () => {
+      this.lastPaint = -Infinity;
+      this.draw(performance.now());
+    };
+    this.monster.src = 'assets/backgrounds/abyss-monster-mouth.png';
     this.resize();
     this.rooms.forEach((room, index) => {
       room.image = new Image();
@@ -121,6 +127,19 @@ class EscapeRoomBackground {
     this.ctx.globalAlpha = 1;
   }
 
+  drawMonster(offset = 0, opacity = 1) {
+    if (!this.monster.complete || !this.monster.naturalWidth || opacity <= 0) return;
+    const width = this.canvas.width;
+    const height = this.canvas.height;
+    const scale = Math.min(width * 0.66 / this.monster.naturalWidth, height * 0.26 / this.monster.naturalHeight);
+    const imageWidth = this.monster.naturalWidth * scale;
+    const imageHeight = this.monster.naturalHeight * scale;
+    this.ctx.save();
+    this.ctx.globalAlpha = opacity;
+    this.ctx.drawImage(this.monster, (width - imageWidth) / 2, height * 0.965 - imageHeight + offset, imageWidth, imageHeight);
+    this.ctx.restore();
+  }
+
   draw(timestamp) {
     // 静止时轻雾限频，飞升时每帧滚动；原图仅在加载、缩放时合成。
     if (!this.ascent && !this.crossfade && timestamp - this.lastPaint < 1000 / 15) return;
@@ -150,6 +169,8 @@ class EscapeRoomBackground {
       const nextRoom = this.rooms[this.ascent.nextLevel];
       if (nextRoom.loaded) this.drawRoom(nextRoom, this.scrollOffset, blend);
     }
+    this.drawMonster(this.scrollOffset, 1 - blend);
+    if (blend > 0) this.drawMonster(0, blend);
     this.canvas.dataset.room = room.name;
     this.canvas.dataset.imageState = room.loaded ? 'ready' : room.failed ? 'failed' : 'loading';
     this.canvas.dataset.scrollOffset = String(this.scrollOffset / height);

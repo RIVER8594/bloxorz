@@ -9,3 +9,10 @@
 @media(max-width:650px){.board{height:clamp(380px,calc(100dvh - 310px),600px)}.modal.wide{padding:18px 13px}}
 .board.with-panel{touch-action:auto}.modal{touch-action:pan-y}
 @media(max-width:650px){.shell:has(.dpad:not([hidden])) .board{height:clamp(340px,calc(100dvh - 390px),540px)}}
+
+/* Floating in-game status and controls */
+.toolbar{position:sticky;top:10px;z-index:8;margin:0 8px 12px;padding:10px 12px;border:1px solid rgba(134,181,208,.24);border-radius:16px;background:rgba(8,18,30,.82);box-shadow:0 12px 30px rgba(0,0,0,.28);backdrop-filter:blur(14px)}
+.toolbar button{background:rgba(25,40,58,.72)}
+.toolbar button:hover:not(:disabled){background:#29465b}
+.toolbar .step-chip{border-left-color:rgba(134,181,208,.28)}
+@media(max-width:650px){.toolbar{top:6px;margin:0 4px 9px;padding:8px;border-radius:13px}}
